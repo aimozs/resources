@@ -53,6 +53,8 @@ public class LoginManager : MonoBehaviour {
 	public User newUser;
 
 	public WWWForm form;
+
+	private string kleberKey;
 	
 	private string stagingURL = "http://racstaging.2and2.com.au/";
 	private string liveURL = "https://littlelegends.rac.com.au/";
@@ -60,6 +62,8 @@ public class LoginManager : MonoBehaviour {
 	private string APIRegistration = "api/users";
 	private string URLRegistration = "registration";
 	private string URLForgotPassword = "forgotpassword";
+	private string URLKleberKey = "kleberkey";
+	private string URLSchoolSearch = "schools?search=";
 	
 	private string username;
 	private string password;
@@ -88,6 +92,7 @@ public class LoginManager : MonoBehaviour {
 			URLForgotPassword = liveURL + URLForgotPassword;
 		} else {
 			URLLogin = stagingURL + URLLogin;
+			URLKleberKey = stagingURL + "api/" + URLKleberKey;
 			APIRegistration = stagingURL + APIRegistration;
 			URLRegistration = stagingURL + "website/" + URLRegistration;
 			URLForgotPassword = stagingURL + "website/" + URLForgotPassword;
@@ -102,6 +107,7 @@ public class LoginManager : MonoBehaviour {
 			Debug.Log ("api registration: " + APIRegistration);
 			Debug.Log ("registration link: " + URLRegistration);
 			Debug.Log ("password: " + URLForgotPassword);
+			Debug.Log ("kleberkey: " + URLKleberKey);
 
 		}
 	}
@@ -186,6 +192,31 @@ public class LoginManager : MonoBehaviour {
 			if(Debug.isDebugBuild)
 				Debug.LogWarning (www.error + ": " + www.text);
 		}
+	}
+
+//	public string GetKleberKey(){
+//		string key;
+//
+//		return key;
+//	}
+
+	IEnumerator RetreiveKleberKey(){
+
+		WWW www = new WWW(URLKleberKey);
+		yield return www;
+
+		Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(www.text) as Dictionary<string, object>;
+
+		Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
+
+		List<object> result = (List<object>)dtResponse["Result"];
+
+		Dictionary<string, object> itemDict = (Dictionary<string, object>)result[0];
+
+		kleberKey = (string)itemDict["TemporaryRequestKey"];
+
+		if(debugLogin)
+			Debug.Log(kleberKey);
 	}
 
 	public void FetchAddressData(){
@@ -300,6 +331,9 @@ public class LoginManager : MonoBehaviour {
 			DisplayScreen(RegisterScreen, true);
 			SwapScreenButton.GetComponentInChildren<Text>().text = "Sign in";
 		}
+
+		if(kleberKey == null)
+			StartCoroutine(RetreiveKleberKey());
 	}
 
 	public void ClearFormAndData(){
@@ -364,7 +398,7 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void CreateUserFromDict(Dictionary<string, object> answerDict) {
-
+		
 		newUser = gameObject.AddComponent<User>();
 		newUser.SetupUser((int)(long)answerDict["id"], (string)answerDict["email"], (string)answerDict["firstname"]);
 		SaveUser();
