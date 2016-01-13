@@ -11,6 +11,6 @@ public class AddressButton : MonoBehaviour {
 
 	public void OnAddressBtnClick(){
 		Debug.Log("address btn " + address.AddressLine);
-		LoginManager.Instance.SetSelectedMatch(address);
+		LoginManager.Instance.SetSelectedAddress(address);
 	}
 }

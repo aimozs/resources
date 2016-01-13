@@ -55,6 +55,9 @@ public class LoginManager : MonoBehaviour {
 	public GameObject addressMatchGO;
 	public GameObject addressPrefab;
 
+	public GameObject schoolMatchGO;
+	public GameObject schoolPrefab;
+
 	public GameObject usersGO;
 	public GameObject userPrefab;
 
@@ -67,6 +70,7 @@ public class LoginManager : MonoBehaviour {
 	private bool _fetchAddress = true;
 
 	private string kleberKey;
+	private string schoolCode;
 	
 	private string stagingURL = "http://racstaging.2and2.com.au/";
 	private string liveURL = "https://littlelegends.rac.com.au/";
@@ -75,7 +79,7 @@ public class LoginManager : MonoBehaviour {
 	private string URLRegistration = "registration";
 	private string URLForgotPassword = "forgotpassword";
 	private string URLKleberKey = "kleberkey";
-	private string URLSchoolSearch = "schools?search=";
+	private string URLSchool = "schools?search=";
 	private string URLFetchAddress;
 	
 	private string username;
@@ -107,15 +111,18 @@ public class LoginManager : MonoBehaviour {
 		
 		if(live){
 			URLLogin = liveURL + URLLogin;
+			URLKleberKey = liveURL + "api/" + URLKleberKey;
 			APIRegistration = liveURL + APIRegistration;
 			URLRegistration = liveURL + URLRegistration;
 			URLForgotPassword = liveURL + URLForgotPassword;
+			URLSchool = liveURL + URLSchool;
 		} else {
 			URLLogin = stagingURL + URLLogin;
 			URLKleberKey = stagingURL + "api/" + URLKleberKey;
 			APIRegistration = stagingURL + APIRegistration;
 			URLRegistration = stagingURL + "website/" + URLRegistration;
 			URLForgotPassword = stagingURL + "website/" + URLForgotPassword;
+			URLSchool = stagingURL + "api/" + URLSchool;
 		}
 		
 		DisplayScreen(LoginScreen, true);
@@ -167,7 +174,6 @@ public class LoginManager : MonoBehaviour {
 		}
 
 		PopulateRegistration();
-//		GenerateForm();
 
 		jsonString = JsonUtility.ToJson(newRegisterDetails);
 		DisplayScreen(Feedback, false);
@@ -233,6 +239,58 @@ public class LoginManager : MonoBehaviour {
 
 		if(debugLogin)
 			Debug.Log(kleberKey);
+	}
+
+	public void FetchSchool(){
+		if(schoolGO.GetComponent<InputField>().text.Length > 2){
+
+			string search = schoolGO.GetComponent<InputField>().text;
+			Debug.Log("address " + search);
+
+			StartCoroutine(FetchSchoolData(search));
+
+		}
+	}
+
+	IEnumerator FetchSchoolData(string search){
+		string URLSchoolSearch = URLSchool + search;
+
+		if(debugLogin)
+			Debug.Log("URL fetching " + URLSchoolSearch);
+
+		WWW www = new WWW(URLSchoolSearch);
+		yield return www;
+
+		Debug.Log(www.text);
+
+		object[] schoolMatch = MiniJSON.Json.Deserialize(www.text);
+
+//		Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(www.text) as Dictionary<string, object>;
+//
+//		Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
+//
+//		if(dtResponse["Result"] != null){
+//
+//			List<object> results = (List<object>)dtResponse["Result"];
+//
+//			addresses.Clear();
+//			DeleteAddressListChildren();
+//
+//			foreach(object result in results){
+//				Dictionary<string, object> match = (Dictionary<string, object>)result;
+//
+//				VOAddress voAddress = new VOAddress((string)match["RecordId"], (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
+//
+//				addresses.Add(voAddress);
+//			}
+//
+//			DisplayMatchList();
+//
+//		} else {
+//
+//			if(debugLogin)
+//				Debug.Log("There's no matching school");
+//		}
 	}
 
 	public void FetchAddress(){
@@ -302,7 +360,13 @@ public class LoginManager : MonoBehaviour {
 		}
 	}
 
-	public void SetSelectedMatch(VOAddress selectedAddress){
+	public void SetSelectedSchool(string _schoolName, string _schoolCode){
+		schoolGO.GetComponent<InputField>().text = _schoolName;
+		schoolCode = _schoolCode;
+		Debug.Log("setting school data: " + schoolGO.GetComponent<InputField>().text + schoolCode);
+	}
+
+	public void SetSelectedAddress(VOAddress selectedAddress){
 
 		_fetchAddress = false;
 
@@ -333,8 +397,6 @@ public class LoginManager : MonoBehaviour {
 			break;
 		}
 
-
-
 		string URLRetrieveAddress = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Capture.Address.Predictive.AuPaf.RetrieveAddress&RecordId=" + EncodeToURI(selectedAddress.RecordId) + "&AddressLine=" + EncodeToURI(selectedAddress.AddressLine) + "&Locality=" + EncodeToURI(selectedAddress.Locality) + "&State=" + EncodeToURI(selectedAddress.State) + "&Postcode=" + EncodeToURI(selectedAddress.Postcode) + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
 		StartCoroutine(RetrieveAddressData(URLRetrieveAddress));
 
@@ -354,33 +416,6 @@ public class LoginManager : MonoBehaviour {
 
 		Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
 
-		foreach(KeyValuePair<string, object> results in dtResponse){
-			Debug.Log("results from retreive address www" + results.Key);
-		}
-//		if(dtResponse["Result"] != null){
-//
-//			List<object> results = (List<object>)dtResponse["Result"];
-//
-//			addresses.Clear();
-//			DeleteAddressListChildren();
-//
-//			foreach(object result in results){
-//				Dictionary<string, object> match = (Dictionary<string, object>)result;
-//
-//				VOAddress voAddress = new VOAddress((string)match["RecordId"], (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
-//
-//				addresses.Add(voAddress);
-//			}
-//
-//			DisplayMatchList();
-//		}
-//		} else {
-//
-//			DisplayScreen(addressMatchGO, false);
-//
-//			if(debugLogin)
-//				Debug.Log("There's no matching addresses");
-//		}
 	}
 
 	void DeleteAddressListChildren(){
@@ -404,31 +439,6 @@ public class LoginManager : MonoBehaviour {
 		byte[] bytes = encoding.GetBytes(value);
 		return bytes;
 	}
-
-	public void GenerateForm(){
-		form = new WWWForm();
-
-		form.AddField("male", newRegisterDetails.male);
-		form.AddField("dob", newRegisterDetails.dob);
-		form.AddField("firstname", newRegisterDetails.firstname);
-		form.AddField("lastname", newRegisterDetails.lastname);
-		form.AddField("school", newRegisterDetails.school);
-		form.AddField("address", newRegisterDetails.address);
-		form.AddField("address_suburb", newRegisterDetails.address_suburb);
-		form.AddField("address_state", newRegisterDetails.address_state);
-		form.AddField("address_postcode", newRegisterDetails.address_postcode);
-		form.AddField("phone", newRegisterDetails.phone);
-		form.AddField("email", newRegisterDetails.email);
-		form.AddField("password", newRegisterDetails.password);
-
-		form.AddField("guardian_dob", newRegisterDetails.dob);
-		form.AddField("guardian_firstname", newRegisterDetails.firstname);
-		form.AddField("guardian_lastname", newRegisterDetails.lastname);
-		form.AddField("guardian_title", "Mr");
-		form.AddField("schoolcode", "");
-		form.AddField("teacher", "wow");
-
-	}
 	
 	public void ResetFeedback(){
 		passwordGO.GetComponent<InputField>().text = "";
@@ -451,7 +461,7 @@ public class LoginManager : MonoBehaviour {
 		newRegisterDetails.email = emailGO.GetComponent<InputField>().text;
 		newRegisterDetails.password = newPasswordGO.GetComponent<InputField>().text;
 
-		newRegisterDetails.schoolcode = "1";
+		newRegisterDetails.schoolcode = schoolCode;
 		newRegisterDetails.teacher = "t";
 		newRegisterDetails.guardian_firstname = "gfn";
 		newRegisterDetails.guardian_lastname = "gln";
