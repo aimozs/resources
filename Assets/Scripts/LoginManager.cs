@@ -16,6 +16,8 @@ public class LoginManager : MonoBehaviour {
 	
 	public bool debugLogin;
 	public bool live = false;
+
+	public int limit = 3;
 	
 	public GameObject LoginUI;
 	
@@ -48,13 +50,19 @@ public class LoginManager : MonoBehaviour {
 	public GameObject passwordConfirmationGO;
 	public GameObject RegisterGO;
 
+	public GameObject addressMatchGO;
+	public GameObject addressPrefab;
+
 	public LoginDetails newLoginDetails;
 	public RegisterDetails newRegisterDetails;
 	public User newUser;
 
 	public WWWForm form;
 
+	private bool _fetchAddress = true;
+
 	private string kleberKey;
+	private string encodedKleberKey;
 	
 	private string stagingURL = "http://racstaging.2and2.com.au/";
 	private string liveURL = "https://littlelegends.rac.com.au/";
@@ -64,10 +72,13 @@ public class LoginManager : MonoBehaviour {
 	private string URLForgotPassword = "forgotpassword";
 	private string URLKleberKey = "kleberkey";
 	private string URLSchoolSearch = "schools?search=";
+	private string URLFetchAddress;
 	
 	private string username;
 	private string password;
 	private string jsonString;
+	private Dictionary<string, string> headers = new Dictionary<string, string>();
+	public List<VOAddress> addresses = new List<VOAddress>();
 
 	private static LoginManager instance;
 	public static LoginManager Instance {
@@ -83,6 +94,10 @@ public class LoginManager : MonoBehaviour {
 
 		newLoginDetails = GetComponent<LoginDetails>();
 		newRegisterDetails = GetComponent<RegisterDetails>();
+
+		GenerateHeaders();
+
+		DisplayScreen(addressMatchGO, false);
 
 		
 		if(live){
@@ -112,7 +127,10 @@ public class LoginManager : MonoBehaviour {
 		}
 	}
 
-	
+	void GenerateHeaders(){
+		headers.Add("Content-Type", "application/json");
+		headers.Add("Accept", "application/json");
+	}
 	
 	//GOTOS
 	public void GoToRegistration() {
@@ -156,12 +174,6 @@ public class LoginManager : MonoBehaviour {
 		if(debugLogin)
 			Debug.Log("Registering");
 
-
-		//Post need to be provided with headers
-		Dictionary<string, string> headers = new Dictionary<string, string>();
-		headers.Add("Content-Type", "application/json");
-		headers.Add("Accept", "application/json");
-
 		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 		if(debugLogin)
 			Debug.Log("JSON created from form" + jsonString);
@@ -194,11 +206,6 @@ public class LoginManager : MonoBehaviour {
 		}
 	}
 
-//	public string GetKleberKey(){
-//		string key;
-//
-//		return key;
-//	}
 
 	IEnumerator RetreiveKleberKey(){
 
@@ -215,22 +222,138 @@ public class LoginManager : MonoBehaviour {
 
 		kleberKey = (string)itemDict["TemporaryRequestKey"];
 
+		encodedKleberKey = EncodeToURI(kleberKey);
+
 		if(debugLogin)
 			Debug.Log(kleberKey);
 	}
 
-	public void FetchAddressData(){
-		Debug.Log("Getting data");
+	public void FetchAddress(){
+		if(kleberKey == null)
+			StartCoroutine(RetreiveKleberKey());
+		else if(addressGO.GetComponent<InputField>().text.Length > 2 && _fetchAddress){
+
+			string address = addressGO.GetComponent<InputField>().text;
+			Debug.Log("address " + address);
+
+			URLFetchAddress = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Capture.Address.Predictive.AuPaf.SearchAddress&AddressLine=" + EncodeToURI(address) + "&ResultLimit=" + Instance.limit + "&RequestKey=" + encodedKleberKey + "&OutputFormat=json";
+
+			StartCoroutine(FetchAddressData());
+
+		} else {
+			_fetchAddress = true;
+		}
+	}
+
+	IEnumerator FetchAddressData(){
+		if(debugLogin)
+			Debug.Log("URL fetching " + URLFetchAddress);
+
+		WWW www = new WWW(URLFetchAddress);
+		yield return www;
+
+		Debug.Log(www.text);
+
+		Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(www.text) as Dictionary<string, object>;
+
+		Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
+
+		if(dtResponse["Result"] != null){
+
+			List<object> results = (List<object>)dtResponse["Result"];
+
+			addresses.Clear();
+			DeleteAddressListChildren();
+
+			foreach(object result in results){
+				Dictionary<string, object> match = (Dictionary<string, object>)result;
+
+				VOAddress voAddress = new VOAddress((string)match["RecordId"], (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
+
+				addresses.Add(voAddress);
+			}
+
+			DisplayMatchList();
+
+		} else {
+
+			DisplayScreen(addressMatchGO, false);
+
+			if(debugLogin)
+				Debug.Log("There's no matching addresses");
+		}
+	}
+
+	void DisplayMatchList(){
+		DisplayScreen(addressMatchGO, true);
+
+		foreach(VOAddress address in addresses){
+			GameObject newAddress = Instantiate(addressPrefab);
+			newAddress.transform.SetParent(addressMatchGO.transform, false);
+			newAddress.GetComponentInChildren<Text>().text = address.AddressLine + "\n" + address.Locality + "\n" + address.Postcode + " " + address.State;
+			newAddress.GetComponent<AddressButton>().SetAddress(address);
+		}
+	}
+
+	public void SetSelectedMatch(VOAddress selectedAddress){
+
+		_fetchAddress = false;
+
+		DeleteAddressListChildren();
+
+		addressGO.GetComponent<InputField>().text = selectedAddress.AddressLine;
+		suburbGO.GetComponent<InputField>().text = selectedAddress.Locality;
+		postcodeGO.GetComponent<InputField>().text = selectedAddress.Postcode;
+		switch(selectedAddress.State){
+		case "ACT":
+			stateGO.GetComponent<Dropdown>().value = 0;
+			break;
+		case "QLD":
+			stateGO.GetComponent<Dropdown>().value = 1;
+			break;
+		case "NSW":
+			stateGO.GetComponent<Dropdown>().value = 2;
+			break;
+		case "NT":
+			stateGO.GetComponent<Dropdown>().value = 3;
+			break;
+		case "VIC":
+			stateGO.GetComponent<Dropdown>().value = 4;
+			break;
+		case "TAZ":
+			stateGO.GetComponent<Dropdown>().value = 5;
+			break;
+		case "WA":
+			stateGO.GetComponent<Dropdown>().value = 6;
+			break;
+		}
+
+	}
+
+	void DeleteAddressListChildren(){
+		int childs = addressMatchGO.transform.childCount;
+		if(childs > 0){
+			
+	        for (int i = childs - 1; i >= 0; i--) {
+				Debug.Log(i + ": " + addressMatchGO.transform.GetChild(i).name);
+				Destroy(addressMatchGO.transform.GetChild(i).gameObject);
+	        }
+        }
+	}
+
+	public string EncodeToURI(string value) {
+		return System.Uri.EscapeDataString(value);
+	}
+
+	public byte[] EncodeToByte(string value) {
+		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+		byte[] bytes = encoding.GetBytes(value);
+		return bytes;
 	}
 
 	public void GenerateForm(){
 		form = new WWWForm();
 
-//		if(newRegisterDetails.sex == "Male"){
-//			form.AddField("male", "1");
-//		} else {
-//			form.AddField("female", "1");
-//		}
 		form.AddField("male", newRegisterDetails.male);
 		form.AddField("dob", newRegisterDetails.dob);
 		form.AddField("firstname", newRegisterDetails.firstname);
@@ -253,11 +376,6 @@ public class LoginManager : MonoBehaviour {
 
 	}
 
-	public void FormatDOB(){
-		if(dobGO.GetComponent<InputField>().text.Length == 2)
-			dobGO.GetComponent<InputField>().text += "-";
-	}
-
 	public void FormatDOBonEnd(){
 		dobGO.GetComponent<InputField>().text = dobGO.GetComponent<InputField>().text.Insert(4, "-");
 		dobGO.GetComponent<InputField>().text = dobGO.GetComponent<InputField>().text.Insert(7, "-");
@@ -269,7 +387,6 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void PopulateRegistration(){
-//		newRegisterDetails.sex = sexGO.GetComponent<ToggleGroup>().ActiveToggles().First().gameObject.name;
 		newRegisterDetails.male = maleGO.GetComponent<Toggle>().isOn ? "1" : "0";
 		newRegisterDetails.dob = dobGO.GetComponent<InputField>().text;
 		newRegisterDetails.firstname = firstnameGO.GetComponent<InputField>().text;
@@ -349,15 +466,13 @@ public class LoginManager : MonoBehaviour {
 		if(debugLogin)
 			Debug.Log("Logging in");
 
-		Dictionary<string, string> headers = new Dictionary<string, string>();
-		headers.Add("Content-Type", "application/json");
-		headers.Add("Accept", "application/json");
+//		Dictionary<string, string> headers = new Dictionary<string, string>();
+//		headers.Add("Content-Type", "application/json");
+//		headers.Add("Accept", "application/json");
 		
-		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
-		byte[] json = encoding.GetBytes(jsonString);
 		
 		DisplayScreen(Feedback, false);
-		WWW www = new WWW(URLLogin, json, headers);
+		WWW www = new WWW(URLLogin, EncodeToByte(jsonString), headers);
 		yield return www;
 		
 		string errorCode = "400";
