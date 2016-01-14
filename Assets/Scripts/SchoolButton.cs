@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 
 public class SchoolButton : MonoBehaviour {
@@ -9,6 +10,7 @@ public class SchoolButton : MonoBehaviour {
 	public void SetSchool(string schoolName, string schoolCode){
 		_schoolName = schoolName;
 		_schoolCode = schoolCode;
+		GetComponentInChildren<Text>().text = _schoolName;
 	}
 
 	public void OnSchoolBtnClick(){

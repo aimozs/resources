@@ -68,6 +68,7 @@ public class LoginManager : MonoBehaviour {
 	public WWWForm form;
 
 	private bool _fetchAddress = true;
+	private bool _fetchSchool = true;
 
 	private string kleberKey;
 	private string schoolCode;
@@ -218,7 +219,7 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void HideAddressSuggestions(){
-		DeleteAddressListChildren();
+		DeleteListChildren(addressMatchGO);
 	}
 
 
@@ -242,13 +243,15 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void FetchSchool(){
-		if(schoolGO.GetComponent<InputField>().text.Length > 2){
+		if(schoolGO.GetComponent<InputField>().text.Length > 2 && _fetchSchool){
 
 			string search = schoolGO.GetComponent<InputField>().text;
 			Debug.Log("address " + search);
 
 			StartCoroutine(FetchSchoolData(search));
 
+		} else {
+			_fetchSchool = true;
 		}
 	}
 
@@ -261,36 +264,16 @@ public class LoginManager : MonoBehaviour {
 		WWW www = new WWW(URLSchoolSearch);
 		yield return www;
 
-		Debug.Log(www.text);
+		List<object> schoolMatches = MiniJSON.Json.Deserialize(www.text) as List<object>;
 
-		object[] schoolMatch = MiniJSON.Json.Deserialize(www.text);
+		foreach(Dictionary<string, object> schoolMatch in schoolMatches){
+			DisplayScreen(schoolMatchGO, true);
 
-//		Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(www.text) as Dictionary<string, object>;
-//
-//		Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
-//
-//		if(dtResponse["Result"] != null){
-//
-//			List<object> results = (List<object>)dtResponse["Result"];
-//
-//			addresses.Clear();
-//			DeleteAddressListChildren();
-//
-//			foreach(object result in results){
-//				Dictionary<string, object> match = (Dictionary<string, object>)result;
-//
-//				VOAddress voAddress = new VOAddress((string)match["RecordId"], (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
-//
-//				addresses.Add(voAddress);
-//			}
-//
-//			DisplayMatchList();
-//
-//		} else {
-//
-//			if(debugLogin)
-//				Debug.Log("There's no matching school");
-//		}
+			GameObject newSchool = Instantiate(schoolPrefab);
+			newSchool.transform.SetParent(schoolMatchGO.transform, false);
+			newSchool.GetComponent<SchoolButton>().SetSchool(schoolMatch["name"].ToString(), schoolMatch["code"].ToString());
+		}
+
 	}
 
 	public void FetchAddress(){
@@ -328,7 +311,7 @@ public class LoginManager : MonoBehaviour {
 			List<object> results = (List<object>)dtResponse["Result"];
 
 			addresses.Clear();
-			DeleteAddressListChildren();
+			DeleteListChildren(addressMatchGO);
 
 			foreach(object result in results){
 				Dictionary<string, object> match = (Dictionary<string, object>)result;
@@ -361,9 +344,13 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void SetSelectedSchool(string _schoolName, string _schoolCode){
+		_fetchSchool = false;
+
 		schoolGO.GetComponent<InputField>().text = _schoolName;
 		schoolCode = _schoolCode;
 		Debug.Log("setting school data: " + schoolGO.GetComponent<InputField>().text + schoolCode);
+
+		DeleteListChildren(schoolMatchGO);
 	}
 
 	public void SetSelectedAddress(VOAddress selectedAddress){
@@ -400,7 +387,7 @@ public class LoginManager : MonoBehaviour {
 		string URLRetrieveAddress = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Capture.Address.Predictive.AuPaf.RetrieveAddress&RecordId=" + EncodeToURI(selectedAddress.RecordId) + "&AddressLine=" + EncodeToURI(selectedAddress.AddressLine) + "&Locality=" + EncodeToURI(selectedAddress.Locality) + "&State=" + EncodeToURI(selectedAddress.State) + "&Postcode=" + EncodeToURI(selectedAddress.Postcode) + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
 		StartCoroutine(RetrieveAddressData(URLRetrieveAddress));
 
-		DeleteAddressListChildren();
+		DeleteListChildren(addressMatchGO);
 	}
 
 	IEnumerator RetrieveAddressData(string urlRetrieveAddress){
@@ -418,16 +405,16 @@ public class LoginManager : MonoBehaviour {
 
 	}
 
-	void DeleteAddressListChildren(){
-		int childs = addressMatchGO.transform.childCount;
+	void DeleteListChildren(GameObject GO){
+		int childs = GO.transform.childCount;
 		if(childs > 0){
 			
 	        for (int i = childs - 1; i >= 0; i--) {
-				Debug.Log(i + ": " + addressMatchGO.transform.GetChild(i).name);
-				Destroy(addressMatchGO.transform.GetChild(i).gameObject);
+				Debug.Log(i + ": " + GO.transform.GetChild(i).name);
+				Destroy(GO.transform.GetChild(i).gameObject);
 	        }
         }
-        DisplayScreen(addressMatchGO, false);
+		DisplayScreen(GO, false);
 	}
 
 	public string EncodeToURI(string value) {
