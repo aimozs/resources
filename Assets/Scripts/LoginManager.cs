@@ -27,6 +27,7 @@ public class LoginManager : MonoBehaviour {
 	public GameObject RegisterScreen;
 	public GameObject notifScreen;
 	public GameObject SwapScreenButton;
+	public GameObject LogoutBtn;
 	
 	public GameObject usernameGO;
 	public GameObject passwordGO;
@@ -115,7 +116,6 @@ public class LoginManager : MonoBehaviour {
 		DisplayScreen(addressMatchGO, false);
 		DisplayScreen(usersGO, false);
 
-		
 		if(live){
 			URLLogin = liveURL + URLLogin;
 			URLKleberKey = liveURL + "api/" + URLKleberKey;
@@ -156,21 +156,41 @@ public class LoginManager : MonoBehaviour {
 		int numUsers = PlayerPrefs.GetInt("NumUsers", 0);
 		Debug.Log(numUsers);
 
-		for(int u = 1; u < numUsers; u++){
-			Debug.Log(u);
-			string loadedUser = PlayerPrefs.GetString("user" + u);
-			Debug.Log(loadedUser);
+		if(numUsers > 0){
+			DisplayScreen(usersGO, true);
+			SwapSigninLogout();
+			for(int u = 1; u < numUsers; u++){
+				Debug.Log(u);
+				string loadedUser = PlayerPrefs.GetString("user" + u);
+				Debug.Log(loadedUser);
 
-			Dictionary<string, object> newUser = (Dictionary<string, object>)MiniJSON.Json.Deserialize(loadedUser);
-//			Debug.Log(newUser["id"]);
-//			foreach(KeyValuePair<string, object> kvp in newUser){
-//				Debug.Log(kvp.Key);
-//			}
-			CreateUserFromDict(newUser);
+				Dictionary<string, object> newUser = (Dictionary<string, object>)MiniJSON.Json.Deserialize(loadedUser);
+	//			Debug.Log(newUser["id"]);
+	//			foreach(KeyValuePair<string, object> kvp in newUser){
+	//				Debug.Log(kvp.Key);
+	//			}
+				CreateUserFromDict(newUser);
+			}
 		}
 	}
 
+	void SwapSigninLogout(){
+		if(SwapScreenButton.activeInHierarchy) {
+			SwapScreenButton.SetActive(false);
+			LogoutBtn.SetActive(true);
+		} else {
+			SwapScreenButton.SetActive(true);
+			LogoutBtn.SetActive(false);
+		}
+	}
 
+	public void LogUserOut(){
+		PlayerPrefs.DeleteAll();
+		PlayerPrefs.Save();
+
+		DeleteListChildren(usersGO);
+		SwapSigninLogout();
+	}
 
 	void GenerateHeaders(){
 		headers.Add("Content-Type", "application/json");
@@ -727,23 +747,12 @@ public class LoginManager : MonoBehaviour {
 					Debug.Log("Loggedin with more than one kid");
 
 				DisplayScreen(usersGO, true);
-//				RectTransform userList = (RectTransform)userPanel.transform.FindChild("UserList");
 
 				foreach(Dictionary<string, object> user in users) {
-					GameObject newUser = Instantiate(userPrefab) as GameObject;
-					newUser.transform.SetParent(usersGO.transform, false);
-					newUser.GetComponentInChildren<Text>().text = CultureInfo.CurrentCulture.TextInfo.ToTitleCase((string)user["firstname"]);
-					newUser.AddComponent<User>();
-					newUser.GetComponentInChildren<User>().id = (int)(long)user["id"];
-					newUser.GetComponentInChildren<User>().email = (string)user["email"];
-					newUser.GetComponentInChildren<User>().firstname = (string)user["firstname"];
-					SaveUser(newUser.GetComponent<User>());
+					CreateUserFromDict(user);
 				}
-//				DisplayNextKid(true);
 
-//				foreach(Dictionary<string, object> user in users) {
-//					CreateUserFromDict(user);
-//				}
+				SwapSigninLogout();
 
 			} else {
 
@@ -771,9 +780,17 @@ public class LoginManager : MonoBehaviour {
 		}
 
 		if(!exist){
-			newUser = gameObject.AddComponent<User>();
-			newUser.SetupUser((int)(long)answerDict["id"], (string)answerDict["email"], (string)answerDict["firstname"]);
-			SaveUser(newUser);
+			GameObject newUser = Instantiate(userPrefab) as GameObject;
+			newUser.transform.SetParent(usersGO.transform, false);
+			newUser.GetComponentInChildren<Text>().text = CultureInfo.CurrentCulture.TextInfo.ToTitleCase((string)answerDict["firstname"]);
+			newUser.AddComponent<User>();
+			newUser.GetComponentInChildren<User>().id = (int)(long)answerDict["id"];
+			newUser.GetComponentInChildren<User>().email = (string)answerDict["email"];
+			newUser.GetComponentInChildren<User>().firstname = (string)answerDict["firstname"];
+			SaveUser(newUser.GetComponent<User>());
+//			newUser = gameObject.AddComponent<User>();
+//			newUser.SetupUser((int)(long)answerDict["id"], (string)answerDict["email"], (string)answerDict["firstname"]);
+//			SaveUser(newUser);
 		}
 
 	}
