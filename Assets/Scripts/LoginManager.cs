@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using MiniJSON;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 
 //[RequireComponent (typeof (User))]
@@ -24,6 +25,7 @@ public class LoginManager : MonoBehaviour {
 	public GameObject LoginScreen;
 	public GameObject Feedback;
 	public GameObject RegisterScreen;
+	public GameObject notifScreen;
 	public GameObject SwapScreenButton;
 	
 	public GameObject usernameGO;
@@ -61,9 +63,12 @@ public class LoginManager : MonoBehaviour {
 	public GameObject usersGO;
 	public GameObject userPrefab;
 
+	public GameObject notifPrefab;
+
 	public LoginDetails newLoginDetails;
 	public RegisterDetails newRegisterDetails;
 	public User newUser;
+	public User currentUser;
 
 	public WWWForm form;
 
@@ -72,6 +77,7 @@ public class LoginManager : MonoBehaviour {
 
 	private string kleberKey;
 	private string schoolCode;
+
 	
 	private string stagingURL = "http://racstaging.2and2.com.au/";
 	private string liveURL = "https://littlelegends.rac.com.au/";
@@ -115,30 +121,56 @@ public class LoginManager : MonoBehaviour {
 			URLKleberKey = liveURL + "api/" + URLKleberKey;
 			APIRegistration = liveURL + APIRegistration;
 			URLRegistration = liveURL + URLRegistration;
-			URLForgotPassword = liveURL + URLForgotPassword;
+			URLForgotPassword = liveURL + "api/" + URLForgotPassword;
 			URLSchool = liveURL + URLSchool;
 		} else {
 			URLLogin = stagingURL + URLLogin;
 			URLKleberKey = stagingURL + "api/" + URLKleberKey;
 			APIRegistration = stagingURL + APIRegistration;
 			URLRegistration = stagingURL + "website/" + URLRegistration;
-			URLForgotPassword = stagingURL + "website/" + URLForgotPassword;
+			URLForgotPassword = stagingURL + "api/" + URLForgotPassword;
 			URLSchool = stagingURL + "api/" + URLSchool;
 		}
 		
 		DisplayScreen(LoginScreen, true);
 		DisplayScreen(RegisterScreen, false);
+		DisplayScreen(notifScreen, false);
 		DisplayScreen(Feedback, false);
 		
 		if(Debug.isDebugBuild){
 			Debug.Log ("login: " + URLLogin);
 			Debug.Log ("api registration: " + APIRegistration);
 			Debug.Log ("registration link: " + URLRegistration);
-			Debug.Log ("password: " + URLForgotPassword);
+			Debug.Log ("api password: " + URLForgotPassword);
 			Debug.Log ("kleberkey: " + URLKleberKey);
 
 		}
+
+		LoadUsers();
 	}
+
+	void LoadUsers(){
+		if(debugLogin)
+			Debug.Log("Loading from playerprefs");
+
+		int numUsers = PlayerPrefs.GetInt("NumUsers", 0);
+		Debug.Log(numUsers);
+
+		for(int u = 1; u < numUsers; u++){
+			Debug.Log(u);
+			string loadedUser = PlayerPrefs.GetString("user" + u);
+			Debug.Log(loadedUser);
+
+			Dictionary<string, object> newUser = (Dictionary<string, object>)MiniJSON.Json.Deserialize(loadedUser);
+//			Debug.Log(newUser["id"]);
+//			foreach(KeyValuePair<string, object> kvp in newUser){
+//				Debug.Log(kvp.Key);
+//			}
+			CreateUserFromDict(newUser);
+		}
+	}
+
+
 
 	void GenerateHeaders(){
 		headers.Add("Content-Type", "application/json");
@@ -150,9 +182,45 @@ public class LoginManager : MonoBehaviour {
 		Application.OpenURL(URLRegistration);
 	}
 	
-	public void GoToForgotPassword() {
-		Application.OpenURL(URLForgotPassword);
+	public void AskForgotPassword() {
+		string accountEmail = usernameGO.GetComponent<InputField>().text;
+		if(accountEmail != ""){
+			StartCoroutine(AskForNewPassowrd(accountEmail));
+		} else {
+			Notify("Email shouldnt be empty");
+		}
 	}
+
+	IEnumerator AskForNewPassowrd(string accountEmail){
+		newLoginDetails.email = usernameGO.GetComponent<InputField>().text;
+		newLoginDetails.password = passwordGO.GetComponent<InputField>().text;
+
+		jsonString = JsonUtility.ToJson(newLoginDetails);
+		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+		byte[] json = encoding.GetBytes(jsonString);
+
+		Debug.Log("json forgotten email" + jsonString);
+		WWW www = new WWW(URLForgotPassword, json, headers);
+		yield return www;
+
+		if(www.error != null)
+			Notify("Email not found");
+	}
+
+	void Notify(string message){
+		if(debugLogin)
+			Debug.Log("Notifying " + message);
+		GameObject notifGO = Instantiate(notifPrefab);
+		notifGO.transform.SetParent(notifScreen.transform, false);
+		notifGO.GetComponentInChildren<Text>().text = message;
+		DisplayScreen(notifScreen, true);
+		Destroy(notifGO, 5f);
+
+		if(notifGO.transform.childCount == 0)
+			DisplayScreen(notifScreen, false);
+
+	}
+
 	
 	//On Clicks
 	public void OnLoginBtnClick() {
@@ -161,15 +229,16 @@ public class LoginManager : MonoBehaviour {
 
 		jsonString = JsonUtility.ToJson(newLoginDetails);
 
+
 		if(debugLogin)
 			Debug.Log("JSON that will be sent" + jsonString);
 
-		StartCoroutine("Login");
+		StartCoroutine(Login());
 	}
 
 	public void OnRegisterBtnClick(){
 		
-		if(newPasswordGO.GetComponent<InputField>().text != passwordConfirmationGO.GetComponent<InputField>().text){
+		if(newPasswordGO.GetComponent<InputField>().text != passwordConfirmationGO.GetComponent<InputField>().text && emailGO.GetComponent<InputField>().text!= ""){
 			DisplayScreen(Feedback, true);
 			return;
 		}
@@ -178,13 +247,21 @@ public class LoginManager : MonoBehaviour {
 
 		jsonString = JsonUtility.ToJson(newRegisterDetails);
 		DisplayScreen(Feedback, false);
+
+		Debug.Log(_fetchAddress);
+
+		if(_fetchAddress){
+			StartCoroutine(DoVerify());
+		} else {
 		
-		StartCoroutine(Register());
+			StartCoroutine(Register());
+		}
 	}
 
 	IEnumerator Register () {
 		if(debugLogin)
 			Debug.Log("Registering");
+
 
 		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 		if(debugLogin)
@@ -192,34 +269,36 @@ public class LoginManager : MonoBehaviour {
 
 		byte[] json = encoding.GetBytes(jsonString);
 
-		WWW www = new WWW(APIRegistration, json, headers);
-		yield return www;
+		WWW register = new WWW(APIRegistration, json, headers);
+		yield return register;
 
 		string errorCode = "400";
-		if(www.error == null)
+
+		if(register.error == null) {
+
 			errorCode = "201";
-		else
-			if(www.error.Length >= 3)
-				errorCode = www.error.Substring(0,3);
-		
-		if(Debug.isDebugBuild || debugLogin)
-			Debug.Log("Answer from " + APIRegistration + ": " + errorCode + www.text);
-		
-		if (errorCode == "201") {
+
 			RegisterGO.GetComponent<Image>().color = Color.green;
-			CreateUserFromAnswer(www.text);
-				
+
+			CreateUserFromAnswer(register.text);
+
 		} else {
-		
+			if(register.error.Length >= 3)
+				errorCode = register.error.Substring(0,3);
+
 			DisplayScreen(Feedback, true);
 			
 			if(Debug.isDebugBuild)
-				Debug.LogWarning (www.error + ": " + www.text);
+				Debug.LogWarning (register.error + ": " + register.text);
 		}
+		
+		if(Debug.isDebugBuild || debugLogin)
+			Debug.Log("Answer from " + APIRegistration + ": " + errorCode + register.text);
 	}
 
 	public void HideAddressSuggestions(){
 		DeleteListChildren(addressMatchGO);
+		_fetchAddress = true;
 	}
 
 
@@ -243,12 +322,13 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void FetchSchool(){
-		if(schoolGO.GetComponent<InputField>().text.Length > 2 && _fetchSchool){
+		if(schoolGO.GetComponent<InputField>().text.Length > 2){
+			if(_fetchSchool){
+				string search = schoolGO.GetComponent<InputField>().text;
+				Debug.Log("address " + search);
 
-			string search = schoolGO.GetComponent<InputField>().text;
-			Debug.Log("address " + search);
-
-			StartCoroutine(FetchSchoolData(search));
+				StartCoroutine(FetchSchoolData(search));
+			}
 
 		} else {
 			_fetchSchool = true;
@@ -279,14 +359,16 @@ public class LoginManager : MonoBehaviour {
 	public void FetchAddress(){
 		if(kleberKey == null)
 			StartCoroutine(RetreiveKleberKey());
-		else if(addressGO.GetComponent<InputField>().text.Length > 2 && _fetchAddress){
+		else if(addressGO.GetComponent<InputField>().text.Length > 2 ){
 
-			string address = addressGO.GetComponent<InputField>().text;
-			Debug.Log("address " + address);
+			if(_fetchAddress){
+				string address = addressGO.GetComponent<InputField>().text;
+				Debug.Log("address " + address);
 
-			URLFetchAddress = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Capture.Address.Predictive.AuPaf.SearchAddress&AddressLine=" + EncodeToURI(address) + "&ResultLimit=" + Instance.limit + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
+				URLFetchAddress = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Capture.Address.Predictive.AuPaf.SearchAddress&AddressLine=" + EncodeToURI(address) + "&ResultLimit=" + Instance.limit + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
 
-			StartCoroutine(FetchAddressData());
+				StartCoroutine(FetchAddressData());
+			}
 
 		} else {
 			_fetchAddress = true;
@@ -329,6 +411,100 @@ public class LoginManager : MonoBehaviour {
 
 			if(debugLogin)
 				Debug.Log("There's no matching addresses");
+		}
+	}
+
+	IEnumerator DoVerify(){
+		string jsonv = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Verify.Address.AuPaf.VerifyAddress&AddressLine1=" + EncodeToURI(addressGO.GetComponent<InputField>().text) + "&Locality=" + EncodeToURI(suburbGO.GetComponent<InputField>().text) + "&State=" + EncodeToURI(stateGO.GetComponent<Dropdown>().captionText.text) + "&Postcode=" + EncodeToURI(postcodeGO.GetComponent<InputField>().text) + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
+		if(debugLogin)
+			Debug.Log("Verifying with " + addressGO.GetComponent<InputField>().text + "\n" + jsonv);
+
+
+		WWW verify = new WWW(jsonv);
+		yield return verify;
+
+		Debug.Log(verify.text);
+
+		if(verify.error == null){
+			Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(verify.text) as Dictionary<string, object>;
+
+			Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
+
+			if(dtResponse["Result"] != null){
+				List<object> results = (List<object>)dtResponse["Result"];
+				if(results.Count == 1) {
+					Dictionary<string, object> match = (Dictionary<string, object>)results[0];
+
+					if((string)match["AddressLine"] == ""){
+
+						if(debugLogin)
+							Debug.Log("verify address line empty");
+
+						StartCoroutine(DoRepair());
+
+					} else {
+
+						VOAddress voAddress = new VOAddress("none", (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
+
+						SetSelectedAddress(voAddress);
+
+						StartCoroutine(Register());
+					}
+
+				} else {
+					Debug.Log("NOT EQUAL TO ONE");
+				}
+
+			} else {
+				if(debugLogin)
+					Debug.Log("verify result equal null");
+				StartCoroutine(DoRepair());
+
+			}
+		} else {
+			if(debugLogin)
+				Debug.Log("verify error" + verify.text);
+			StartCoroutine(DoRepair());
+		}
+	}
+
+	IEnumerator DoRepair(){
+		if(debugLogin)
+			Debug.Log("Repairing");
+
+		WWW repair = new WWW("https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Repair.Address.AuPaf.RepairAddress&AddressLine1=" + EncodeToURI(addressGO.GetComponent<InputField>().text) + "&Locality=" + EncodeToURI(suburbGO.GetComponent<InputField>().text) + "&State=" + EncodeToURI(stateGO.GetComponent<Dropdown>().captionText.text) + "&Postcode=" + EncodeToURI(postcodeGO.GetComponent<InputField>().text) + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json");
+		yield return repair;
+
+		if(repair.error == null){
+			Dictionary<string, object> answerDict = MiniJSON.Json.Deserialize(repair.text) as Dictionary<string, object>;
+
+			Dictionary<string, object> dtResponse = (Dictionary<string, object>)answerDict["DtResponse"];
+
+			if(dtResponse["Result"] != null){
+				List<object> results = (List<object>)dtResponse["Result"];
+				if(results.Count == 1) {
+					Dictionary<string, object> match = (Dictionary<string, object>)results[0];
+
+					if((string)match["AddressLine"] == ""){
+
+						StartCoroutine(Register());
+
+					} else {
+
+						VOAddress voAddress = new VOAddress("none", (string)match["AddressLine"], (string)match["Locality"], (string)match["State"], (string)match["Postcode"]);
+
+						SetSelectedAddress(voAddress);
+
+						StartCoroutine(Register());
+					}
+				}
+			} else {
+				if(debugLogin)
+					Debug.Log("repair result equal null");
+			}
+		} else {
+			if(debugLogin)
+				Debug.Log("repair erro " + repair.text);
 		}
 	}
 
@@ -390,6 +566,7 @@ public class LoginManager : MonoBehaviour {
 		DeleteListChildren(addressMatchGO);
 	}
 
+
 	IEnumerator RetrieveAddressData(string urlRetrieveAddress){
 		if(debugLogin)
 			Debug.Log("URL retreive address " + urlRetrieveAddress);
@@ -406,6 +583,19 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	void DeleteListChildren(GameObject GO){
+		int childs = GO.transform.childCount;
+		if(childs > 0){
+			
+	        for (int i = childs - 1; i >= 0; i--) {
+				Debug.Log(i + ": " + GO.transform.GetChild(i).name);
+				Destroy(GO.transform.GetChild(i).gameObject);
+	        }
+        }
+		DisplayScreen(GO, false);
+	}
+
+	IEnumerator DeleteListChildrenDelayed(GameObject GO){
+		yield return new WaitForSeconds(1f);
 		int childs = GO.transform.childCount;
 		if(childs > 0){
 			
@@ -541,14 +731,13 @@ public class LoginManager : MonoBehaviour {
 
 				foreach(Dictionary<string, object> user in users) {
 					GameObject newUser = Instantiate(userPrefab) as GameObject;
-//					listUser.Add(newUser);
 					newUser.transform.SetParent(usersGO.transform, false);
 					newUser.GetComponentInChildren<Text>().text = CultureInfo.CurrentCulture.TextInfo.ToTitleCase((string)user["firstname"]);
 					newUser.AddComponent<User>();
 					newUser.GetComponentInChildren<User>().id = (int)(long)user["id"];
 					newUser.GetComponentInChildren<User>().email = (string)user["email"];
 					newUser.GetComponentInChildren<User>().firstname = (string)user["firstname"];
-//					GameStateManager.Instance.DisplayPanelNotMoving(newUser.GetComponent<RectTransform>(), false);
+					SaveUser(newUser.GetComponent<User>());
 				}
 //				DisplayNextKid(true);
 
@@ -584,7 +773,7 @@ public class LoginManager : MonoBehaviour {
 		if(!exist){
 			newUser = gameObject.AddComponent<User>();
 			newUser.SetupUser((int)(long)answerDict["id"], (string)answerDict["email"], (string)answerDict["firstname"]);
-//			SaveUser();
+			SaveUser(newUser);
 		}
 
 	}
@@ -594,10 +783,23 @@ public class LoginManager : MonoBehaviour {
 		CreateUserFromDict(answerDict);
 	}
 
-	public void SaveUser(){
-		PlayerPrefs.SetInt("userID", (int)newUser.id);
-		PlayerPrefs.SetString("email", newUser.email);
-		PlayerPrefs.SetString("firstname", newUser.firstname);
+	public void SaveUser(User newUser){
+		
+
+		int numUsers = PlayerPrefs.GetInt("NumUsers", 0);
+		numUsers++;
+		string jsonUser = JsonUtility.ToJson(newUser);
+
+		if(debugLogin)
+			Debug.Log("Saving user " + (int)newUser.id + " as the " + numUsers + "th user");
+
+		PlayerPrefs.SetString("user" + numUsers, jsonUser);
+		PlayerPrefs.SetInt("NumUsers", numUsers);
+
+//		PlayerPrefs.SetInt("user" + newUser.id.ToString(), (int)newUser.id);
+//		PlayerPrefs.SetString("email", newUser.email);
+//		PlayerPrefs.SetString("firstname" + newUser.id.ToString(), newUser.firstname);
+
 		PlayerPrefs.Save();
 	}
 
