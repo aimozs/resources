@@ -153,13 +153,13 @@ public class LoginManager : MonoBehaviour {
 		if(debugLogin)
 			Debug.Log("Loading from playerprefs");
 
+
 		int numUsers = PlayerPrefs.GetInt("NumUsers", 0);
 		Debug.Log(numUsers);
 
-		if(numUsers > 0){
+		if(numUsers > 0) {
 			DisplayScreen(usersGO, true);
-			SwapSigninLogout();
-			for(int u = 1; u < numUsers; u++){
+			for(int u = 1; u <= numUsers; u++){
 				Debug.Log(u);
 				string loadedUser = PlayerPrefs.GetString("user" + u);
 				Debug.Log(loadedUser);
@@ -169,13 +169,36 @@ public class LoginManager : MonoBehaviour {
 	//			foreach(KeyValuePair<string, object> kvp in newUser){
 	//				Debug.Log(kvp.Key);
 	//			}
-				CreateUserFromDict(newUser);
+				CreateUserFromDict(newUser, false);
+
 			}
+
+			LoginSingleUser();
 		}
+	}
+
+	void LoginSingleUser(){
+		if(debugLogin)
+			Debug.Log("Login single user: " + GameObject.FindObjectsOfType<User>().Length);
+
+
+		if(GameObject.FindObjectsOfType<User>().Length == 1) {
+			LoginExistingUser(GameObject.FindObjectsOfType<User>()[0]);
+			DisplayLogoutBtn();
+
+		}
+
+	}
+
+	void DisplayLogoutBtn(){
+		SwapScreenButton.SetActive(false);
+		LogoutBtn.SetActive(true);
 	}
 
 	void SwapSigninLogout(){
 		if(SwapScreenButton.activeInHierarchy) {
+			if(debugLogin)
+				Debug.Log("Showing Logout");
 			SwapScreenButton.SetActive(false);
 			LogoutBtn.SetActive(true);
 		} else {
@@ -187,6 +210,8 @@ public class LoginManager : MonoBehaviour {
 	public void LogUserOut(){
 		PlayerPrefs.DeleteAll();
 		PlayerPrefs.Save();
+
+		Destroy(gameObject.GetComponent<User>());
 
 		DeleteListChildren(usersGO);
 		SwapSigninLogout();
@@ -717,6 +742,10 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void LoginExistingUser(User user){
+		currentUser = gameObject.AddComponent<User>();
+		currentUser.SetupUser(user);
+		usernameGO.GetComponent<InputField>().text = user.email;
+		Destroy(user.gameObject);
 		Debug.Log("login that user: " + user.firstname);
 	}
 
@@ -767,9 +796,11 @@ public class LoginManager : MonoBehaviour {
 			if(Debug.isDebugBuild)
 				Debug.LogWarning (www.error + ": " + www.text);
 		}
+
+		LoginSingleUser();
 	}
 
-	public void CreateUserFromDict(Dictionary<string, object> answerDict) {
+	public void CreateUserFromDict(Dictionary<string, object> answerDict, bool saveAfterCreation = true) {
 		User[] users = GameObject.FindObjectsOfType<User>();
 
 		bool exist = false;
@@ -787,10 +818,9 @@ public class LoginManager : MonoBehaviour {
 			newUser.GetComponentInChildren<User>().id = (int)(long)answerDict["id"];
 			newUser.GetComponentInChildren<User>().email = (string)answerDict["email"];
 			newUser.GetComponentInChildren<User>().firstname = (string)answerDict["firstname"];
-			SaveUser(newUser.GetComponent<User>());
-//			newUser = gameObject.AddComponent<User>();
-//			newUser.SetupUser((int)(long)answerDict["id"], (string)answerDict["email"], (string)answerDict["firstname"]);
-//			SaveUser(newUser);
+
+			if(saveAfterCreation)
+				SaveUser(newUser.GetComponent<User>());
 		}
 
 	}
@@ -812,6 +842,9 @@ public class LoginManager : MonoBehaviour {
 
 		PlayerPrefs.SetString("user" + numUsers, jsonUser);
 		PlayerPrefs.SetInt("NumUsers", numUsers);
+
+//		if(PlayerPrefs.GetString("email") == null)
+//			PlayerPrefs.SetString("email", newUser.email);
 
 //		PlayerPrefs.SetInt("user" + newUser.id.ToString(), (int)newUser.id);
 //		PlayerPrefs.SetString("email", newUser.email);

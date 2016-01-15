@@ -4355,7 +4355,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   debugLogin: 1
-  live: 0
+  live: 1
   limit: 4
   LoginUI: {fileID: 1914679889}
   LoginScreen: {fileID: 1128049653}
@@ -5750,7 +5750,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1358658703
 RectTransform:
   m_ObjectHideFlags: 0

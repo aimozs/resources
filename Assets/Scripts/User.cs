@@ -22,6 +22,14 @@ public class User : MonoBehaviour {
 		firstname = newFirstname;
 	}
 
+	public void SetupUser(User newUser){
+		id = newUser.id;
+		email = newUser.email;
+		firstname = newUser.firstname;
+		lastname = newUser.lastname;
+		dob = newUser.dob;
+	}
+
 	public void CreateNewUser(string data){
 		Debug.Log(data.ToString());
 		object user = JsonUtility.FromJson<object>(data.ToString());
