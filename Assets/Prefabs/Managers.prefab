@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &110806
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  serializedVersion: 4
+  m_Component:
+  - 4: {fileID: 466576}
+  - 114: {fileID: 11415202}
+  - 114: {fileID: 11435698}
+  - 114: {fileID: 11427874}
+  m_Layer: 0
+  m_Name: Managers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &466576
+Transform:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 110806}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+--- !u!114 &11415202
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 110806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 517e903842d6f46c4afebf381550ea6b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  debugLogin: 1
+  live: 0
+  limit: 4
+  LoginUI: {fileID: 0}
+  LoginScreen: {fileID: 0}
+  Feedback: {fileID: 0}
+  RegisterScreen: {fileID: 0}
+  notifScreen: {fileID: 0}
+  SwapScreenButton: {fileID: 0}
+  LogoutBtn: {fileID: 0}
+  usernameGO: {fileID: 0}
+  passwordGO: {fileID: 0}
+  loginGO: {fileID: 0}
+  sexGO: {fileID: 0}
+  maleGO: {fileID: 0}
+  femaleGO: {fileID: 0}
+  dobYearGO: {fileID: 0}
+  dobMonthGO: {fileID: 0}
+  dobDayGO: {fileID: 0}
+  firstnameGO: {fileID: 0}
+  lastnameGO: {fileID: 0}
+  schoolGO: {fileID: 0}
+  addressGO: {fileID: 0}
+  suburbGO: {fileID: 0}
+  stateGO: {fileID: 0}
+  postcodeGO: {fileID: 0}
+  phoneGO: {fileID: 0}
+  emailGO: {fileID: 0}
+  newPasswordGO: {fileID: 0}
+  passwordConfirmationGO: {fileID: 0}
+  RegisterGO: {fileID: 0}
+  addressMatchGO: {fileID: 0}
+  addressPrefab: {fileID: 108186, guid: 05da5fd7d580d483c888b3b0b62572ee, type: 2}
+  schoolMatchGO: {fileID: 0}
+  schoolPrefab: {fileID: 114944, guid: 3fb80864801a34edc97aefbeddbcec07, type: 2}
+  usersGO: {fileID: 0}
+  userPrefab: {fileID: 159486, guid: 393e5f44b9a2447d68b302c3904c59aa, type: 2}
+  notifPrefab: {fileID: 159486, guid: 2f64bcda97c8c4ef2b82501e04bf0041, type: 2}
+  newLoginDetails: {fileID: 0}
+  newRegisterDetails: {fileID: 0}
+  newUser: {fileID: 0}
+  currentUser: {fileID: 0}
+--- !u!114 &11427874
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 110806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ba85e8b98af946389089fe1f921d607, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  male: 
+  dob: 
+  firstname: 
+  lastname: 
+  school: 
+  schoolcode: 
+  teacher: 
+  guardian_firstname: 
+  guardian_lastname: 
+  guardian_dob: 
+  guardian_title: 
+  relationship: 
+  address: 
+  address_suburb: 
+  address_state: 
+  address_postcode: 
+  phone: 
+  email: 
+  password: 
+--- !u!114 &11435698
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 110806}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff60624fcd12e4ce89fc4197ac02d278, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  email: 
+  password: 
+--- !u!1001 &100100000
+Prefab:
+  m_ObjectHideFlags: 1
+  serializedVersion: 2
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications: []
+    m_RemovedComponents: []
+  m_ParentPrefab: {fileID: 0}
+  m_RootGameObject: {fileID: 110806}
+  m_IsPrefabParent: 1

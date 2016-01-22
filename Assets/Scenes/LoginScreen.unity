@@ -4355,7 +4355,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   debugLogin: 1
-  live: 1
+  live: 0
   limit: 4
   LoginUI: {fileID: 1914679889}
   LoginScreen: {fileID: 1128049653}

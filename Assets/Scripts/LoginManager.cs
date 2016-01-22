@@ -181,11 +181,8 @@ public class LoginManager : MonoBehaviour {
 		if(debugLogin)
 			Debug.Log("Login single user: " + GameObject.FindObjectsOfType<User>().Length);
 
-
 		if(GameObject.FindObjectsOfType<User>().Length == 1) {
 			LoginExistingUser(GameObject.FindObjectsOfType<User>()[0]);
-			DisplayLogoutBtn();
-
 		}
 
 	}
@@ -193,6 +190,12 @@ public class LoginManager : MonoBehaviour {
 	void DisplayLogoutBtn(){
 		SwapScreenButton.SetActive(false);
 		LogoutBtn.SetActive(true);
+	}
+
+	void DisplaySignUpBtn(){
+		SwapScreenButton.SetActive(true);
+		LogoutBtn.SetActive(false);
+		loginGO.GetComponent<Image>().color = Color.white;
 	}
 
 	void SwapSigninLogout(){
@@ -214,7 +217,7 @@ public class LoginManager : MonoBehaviour {
 		Destroy(gameObject.GetComponent<User>());
 
 		DeleteListChildren(usersGO);
-		SwapSigninLogout();
+		DisplaySignUpBtn();
 	}
 
 	void GenerateHeaders(){
@@ -250,6 +253,8 @@ public class LoginManager : MonoBehaviour {
 
 		if(www.error != null)
 			Notify("Email not found");
+		else
+			Notify("Check your emails");
 	}
 
 	void Notify(string message){
@@ -265,7 +270,6 @@ public class LoginManager : MonoBehaviour {
 			DisplayScreen(notifScreen, false);
 
 	}
-
 	
 	//On Clicks
 	public void OnLoginBtnClick() {
@@ -306,7 +310,6 @@ public class LoginManager : MonoBehaviour {
 	IEnumerator Register () {
 		if(debugLogin)
 			Debug.Log("Registering");
-
 
 		System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
 		if(debugLogin)
@@ -398,7 +401,6 @@ public class LoginManager : MonoBehaviour {
 			newSchool.transform.SetParent(schoolMatchGO.transform, false);
 			newSchool.GetComponent<SchoolButton>().SetSchool(schoolMatch["name"].ToString(), schoolMatch["code"].ToString());
 		}
-
 	}
 
 	public void FetchAddress(){
@@ -463,7 +465,6 @@ public class LoginManager : MonoBehaviour {
 		string jsonv = "https://kleber.datatoolscloud.net.au/KleberWebService/DtKleberService.svc/ProcessQueryStringRequest?Method=DataTools.Verify.Address.AuPaf.VerifyAddress&AddressLine1=" + EncodeToURI(addressGO.GetComponent<InputField>().text) + "&Locality=" + EncodeToURI(suburbGO.GetComponent<InputField>().text) + "&State=" + EncodeToURI(stateGO.GetComponent<Dropdown>().captionText.text) + "&Postcode=" + EncodeToURI(postcodeGO.GetComponent<InputField>().text) + "&RequestKey=" + EncodeToURI(kleberKey) + "&OutputFormat=json";
 		if(debugLogin)
 			Debug.Log("Verifying with " + addressGO.GetComponent<InputField>().text + "\n" + jsonv);
-
 
 		WWW verify = new WWW(jsonv);
 		yield return verify;
@@ -742,10 +743,11 @@ public class LoginManager : MonoBehaviour {
 	}
 
 	public void LoginExistingUser(User user){
-		currentUser = gameObject.AddComponent<User>();
-		currentUser.SetupUser(user);
+		DisplayLogoutBtn();
+		currentUser = user;
+//		currentUser = gameObject.AddComponent<User>();
+//		currentUser.SetupUser(user);
 		usernameGO.GetComponent<InputField>().text = user.email;
-		Destroy(user.gameObject);
 		Debug.Log("login that user: " + user.firstname);
 	}
 
@@ -781,13 +783,13 @@ public class LoginManager : MonoBehaviour {
 					CreateUserFromDict(user);
 				}
 
-				SwapSigninLogout();
-
 			} else {
 
 				CreateUserFromAnswer(www.text);
 				loginGO.GetComponentInChildren<Image>().color = Color.green;
 			}
+
+			LoginSingleUser();
 				
 		} else {
 		
@@ -796,8 +798,6 @@ public class LoginManager : MonoBehaviour {
 			if(Debug.isDebugBuild)
 				Debug.LogWarning (www.error + ": " + www.text);
 		}
-
-		LoginSingleUser();
 	}
 
 	public void CreateUserFromDict(Dictionary<string, object> answerDict, bool saveAfterCreation = true) {
